@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# bootstrap
+set -e
+
+# Define environment variables
+export LAMBDA_TASK_ROOT=/var/task
+export _HANDLER=app.handler
+
+# Start the R process
+exec Rscript -e "
+library(httr)
+source('/var/task/app.R')
+while(TRUE) {
+  req <- GET('http://${AWS_LAMBDA_RUNTIME_API}/2018-06-01/runtime/invocation/next')
+  event <- content(req, 'parsed')
+  context <- list(requestId = headers(req)[['lambda-runtime-aws-request-id']])
+  result <- handler(event, context)
+  POST(paste0('http://${AWS_LAMBDA_RUNTIME_API}/2018-06-01/runtime/invocation/', context$requestId, '/response'), body = result, encode = 'json')
+}"
